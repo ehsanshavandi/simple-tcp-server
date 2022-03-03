@@ -90,24 +90,31 @@ void MainWindow::on_comboBox_currentTextChanged(const QString& arg1)
 
 void MainWindow::newClient()
 {
-  QTcpSocket* socket = server->nextPendingConnection();
-  clientList.append(socket);
-  connect(socket, &QTcpSocket::readyRead, this, &MainWindow::readyReadData);
-  connect(socket, &QTcpSocket::disconnected, this, &MainWindow::disconnectClient);
-
-  // broadcast the message
-  foreach (QTcpSocket* client, clientList)
+  if (server->hasPendingConnections())
   {
-    if (client != socket)
-      client->write(QByteArray::fromStdString(socket->peerAddress().toString().toStdString() +
-                                              " connected to server !\n"));
+    QTcpSocket* socket = server->nextPendingConnection();
+    clientList.append(socket);
+    connect(socket, &QTcpSocket::readyRead, this, &MainWindow::readyReadData);
+    connect(socket, &QTcpSocket::disconnected, this, &MainWindow::disconnectClient);
+
+    // broadcast the message
+    foreach (QTcpSocket* client, clientList)
+    {
+      if (client != socket)
+        client->write(QByteArray::fromStdString(socket->peerAddress().toString().toStdString() +
+                                                " connected to server !\n"));
+    }
   }
+
 }
 
 void MainWindow::readyReadData()
 {
   QTcpSocket* socket = qobject_cast<QTcpSocket*>(sender());
+
+  qInfo() << socket;
   QByteArray datas = socket->readAll();
+  qInfo() << datas;
 
   // broadcast the message
   foreach (QTcpSocket* client, clientList)
@@ -169,6 +176,7 @@ void MainWindow::startServer(bool& ok)
 void MainWindow::stopServer()
 {
   server->close();
+  this->clearSockets();
   this->isListening = false;
   ui->btnStart->setEnabled(true);
   ui->btnStop->setEnabled(false);
